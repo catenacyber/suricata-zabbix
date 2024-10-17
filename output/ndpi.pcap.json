@@ -1,0 +1,193 @@
+{
+  "timestamp": "2019-10-28T10:14:30.609214+0100",
+  "pcap_cnt": 5,
+  "event_type": "zabbix",
+  "src_ip": "192.168.67.98",
+  "src_port": 57162,
+  "dest_ip": "192.168.67.25",
+  "dest_port": 10050,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "zabbix": {
+    "flags": 1,
+    "data": "proc.num[]"
+  }
+}
+{
+  "timestamp": "2019-10-28T10:14:30.613423+0100",
+  "pcap_cnt": 8,
+  "event_type": "alert",
+  "src_ip": "192.168.67.98",
+  "src_port": 57162,
+  "dest_ip": "192.168.67.25",
+  "dest_port": 10050,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "tx_id": 1,
+  "alert": {
+    "action": "allowed",
+    "gid": 1,
+    "signature_id": 10,
+    "rev": 0,
+    "signature": "zabbix frame",
+    "category": "",
+    "severity": 3
+  },
+  "zabbix": {
+    "flags": 1,
+    "data": "263"
+  },
+  "app_proto": "zabbix",
+  "direction": "to_server",
+  "flow": {
+    "pkts_toserver": 4,
+    "pkts_toclient": 4,
+    "bytes_toserver": 295,
+    "bytes_toclient": 288,
+    "start": "2019-10-28T10:14:30.608539+0100",
+    "src_ip": "192.168.67.98",
+    "dest_ip": "192.168.67.25",
+    "src_port": 57162,
+    "dest_port": 10050
+  },
+  "frame": {
+    "type": "data",
+    "id": 1,
+    "direction": "toserver",
+    "stream_offset": 13,
+    "length": 10,
+    "payload": "cHJvYy5udW1bXQ==",
+    "payload_printable": "proc.num[]",
+    "complete": true,
+    "tx_id": 1
+  }
+}
+{
+  "timestamp": "2019-10-28T10:14:30.613423+0100",
+  "pcap_cnt": 8,
+  "event_type": "alert",
+  "src_ip": "192.168.67.98",
+  "src_port": 57162,
+  "dest_ip": "192.168.67.25",
+  "dest_port": 10050,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "tx_id": 0,
+  "alert": {
+    "action": "allowed",
+    "gid": 1,
+    "signature_id": 11,
+    "rev": 0,
+    "signature": "zabbix payload",
+    "category": "",
+    "severity": 3
+  },
+  "zabbix": {
+    "flags": 1,
+    "data": "proc.num[]"
+  },
+  "app_proto": "zabbix",
+  "direction": "to_server",
+  "flow": {
+    "pkts_toserver": 4,
+    "pkts_toclient": 4,
+    "bytes_toserver": 295,
+    "bytes_toclient": 288,
+    "start": "2019-10-28T10:14:30.608539+0100",
+    "src_ip": "192.168.67.98",
+    "dest_ip": "192.168.67.25",
+    "src_port": 57162,
+    "dest_port": 10050
+  }
+}
+{
+  "timestamp": "2019-10-28T10:14:30.613423+0100",
+  "pcap_cnt": 8,
+  "event_type": "alert",
+  "src_ip": "192.168.67.98",
+  "src_port": 57162,
+  "dest_ip": "192.168.67.25",
+  "dest_port": 10050,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "tx_id": 0,
+  "alert": {
+    "action": "allowed",
+    "gid": 1,
+    "signature_id": 12,
+    "rev": 0,
+    "signature": "zabbix flags",
+    "category": "",
+    "severity": 3
+  },
+  "zabbix": {
+    "flags": 1,
+    "data": "proc.num[]"
+  },
+  "app_proto": "zabbix",
+  "direction": "to_server",
+  "flow": {
+    "pkts_toserver": 4,
+    "pkts_toclient": 4,
+    "bytes_toserver": 295,
+    "bytes_toclient": 288,
+    "start": "2019-10-28T10:14:30.608539+0100",
+    "src_ip": "192.168.67.98",
+    "dest_ip": "192.168.67.25",
+    "src_port": 57162,
+    "dest_port": 10050
+  }
+}
+{
+  "timestamp": "2019-10-28T10:14:30.613423+0100",
+  "pcap_cnt": 8,
+  "event_type": "zabbix",
+  "src_ip": "192.168.67.98",
+  "src_port": 57162,
+  "dest_ip": "192.168.67.25",
+  "dest_port": 10050,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "zabbix": {
+    "flags": 1,
+    "data": "263"
+  }
+}
+{
+  "timestamp": "2019-10-28T10:14:30.614852+0100",
+  "pcap_cnt": 10,
+  "event_type": "alert",
+  "src_ip": "192.168.67.25",
+  "src_port": 10050,
+  "dest_ip": "192.168.67.98",
+  "dest_port": 57162,
+  "proto": "TCP",
+  "pkt_src": "wire/pcap",
+  "tx_id": 1,
+  "alert": {
+    "action": "allowed",
+    "gid": 1,
+    "signature_id": 12,
+    "rev": 0,
+    "signature": "zabbix flags",
+    "category": "",
+    "severity": 3
+  },
+  "zabbix": {
+    "flags": 1,
+    "data": "263"
+  },
+  "app_proto": "zabbix",
+  "direction": "to_client",
+  "flow": {
+    "pkts_toserver": 5,
+    "pkts_toclient": 5,
+    "bytes_toserver": 361,
+    "bytes_toclient": 354,
+    "start": "2019-10-28T10:14:30.608539+0100",
+    "src_ip": "192.168.67.98",
+    "dest_ip": "192.168.67.25",
+    "src_port": 57162,
+    "dest_port": 10050
+  }
+}
