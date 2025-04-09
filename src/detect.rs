@@ -1,17 +1,17 @@
-use crate::suricata::{
-    rs_detect_u8_match, rs_detect_u8_parse, DetectBufferSetActiveList,
-    DetectHelperBufferMpmRegister, DetectHelperBufferRegister, DetectHelperGetData,
-    DetectHelperKeywordRegister, DetectHelperKeywordSetup, DetectSignatureSetAppProto,
-    DetectUintData, Level, SCSigTableElmt, SIGMATCH_INFO_STICKY_BUFFER, SIGMATCH_NOOPT,
-};
-use crate::util::ctor_pointer;
-use crate::util::SCLog;
 use crate::zabbix::{ZabbixTransaction, ALPROTO_ZABBIX};
 use std::os::raw::{c_int, c_void};
+use suricata::cast_pointer;
+use suricata::detect::uint::{DetectUintData, SCDetectU8Match, SCDetectU8Parse};
+use suricata::detect::{
+    DetectBufferSetActiveList, DetectHelperBufferMpmRegister, DetectHelperBufferRegister,
+    DetectHelperGetData, DetectHelperKeywordRegister, DetectSignatureSetAppProto, SCSigTableElmt,
+    SigMatchAppendSMToList, SIGMATCH_INFO_STICKY_BUFFER, SIGMATCH_NOOPT,
+};
+use suricata::SCLogNotice;
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_zabbix_keywords_register() {
-    SCLog!(Level::Info, "registering Zabbix keywords");
+    SCLogNotice!("registering Zabbix keywords");
     zabbix_register_flags_keyword();
     zabbix_register_data_keyword();
 }
@@ -25,22 +25,15 @@ pub unsafe extern "C" fn rs_zabbix_flags_setup(
     s: *mut c_void,
     raw: *const std::os::raw::c_char,
 ) -> c_int {
-    let ctx = rs_detect_u8_parse(raw) as *mut std::os::raw::c_void;
+    let ctx = SCDetectU8Parse(raw) as *mut std::os::raw::c_void;
     if ctx.is_null() {
         return -1;
     }
-    let r = DetectHelperKeywordSetup(
-        de,
-        ALPROTO_ZABBIX,
-        G_ZABBIX_FLAGS_KWID,
-        G_ZABBIX_FLAGS_BUFFER_ID,
-        s,
-        ctx,
-    );
-    if r < 0 {
+    if SigMatchAppendSMToList(de, s, G_ZABBIX_FLAGS_KWID, ctx, G_ZABBIX_FLAGS_BUFFER_ID).is_null() {
         rs_zabbix_flags_free(std::ptr::null_mut(), ctx);
+        return -1;
     }
-    r
+    0
 }
 
 #[no_mangle]
@@ -53,14 +46,15 @@ pub unsafe extern "C" fn rs_zabbix_flags_match(
     _sig: *const c_void,
     ctx: *const c_void,
 ) -> c_int {
-    let tx = ctor_pointer!(tx, ZabbixTransaction);
-    rs_detect_u8_match(tx.zabbix.flags, ctx)
+    let tx = cast_pointer!(tx, ZabbixTransaction);
+    let ctx = cast_pointer!(ctx, DetectUintData<u8>);
+    SCDetectU8Match(tx.zabbix.flags, ctx)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_zabbix_flags_free(_de: *mut c_void, ctx: *mut c_void) {
     // Just unbox...
-    let ctx = ctor_pointer!(ctx, DetectUintData<u8>);
+    let ctx = cast_pointer!(ctx, DetectUintData<u8>);
     std::mem::drop(Box::from_raw(ctx));
 }
 
@@ -110,7 +104,7 @@ pub unsafe extern "C" fn rs_zabbix_data(
     buffer: *mut *const u8,
     buffer_len: *mut u32,
 ) -> bool {
-    let tx = ctor_pointer!(tx, ZabbixTransaction);
+    let tx = cast_pointer!(tx, ZabbixTransaction);
     *buffer = tx.zabbix.data.as_ptr();
     *buffer_len = tx.zabbix.data.len() as u32;
     true

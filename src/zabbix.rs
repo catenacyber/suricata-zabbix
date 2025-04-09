@@ -1,17 +1,20 @@
 use super::parser;
-use super::suricata::{
-    AppLayerGetTxIterTuple, AppLayerParserConfParserEnabled, AppLayerParserRegisterLogger,
-    AppLayerProtoDetectConfProtoDetectionEnabled, AppLayerProtoDetectPMRegisterPatternCS,
-    AppLayerRegisterParser, AppLayerRegisterProtocolDetection, AppLayerResult, AppLayerStateData,
-    AppLayerTxData, AppProto, Direction, Flow, Frame, Level, RustParser, StreamSlice,
-    StringToAppProto, ALPROTO_UNKNOWN, APP_LAYER_EVENT_TYPE_TRANSACTION,
-    APP_LAYER_PARSER_OPT_ACCEPT_GAPS, IPPROTO_TCP,
-};
-use crate::util::{ctor_pointer, SCLog};
 use std::collections::VecDeque;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int, c_void};
+use suricata::applayer::{
+    AppLayerGetTxIterTuple, AppLayerParserConfParserEnabled, AppLayerParserRegisterLogger,
+    AppLayerProtoDetectConfProtoDetectionEnabled, AppLayerProtoDetectPMRegisterPatternCS,
+    AppLayerRegisterParser, AppLayerRegisterProtocolDetection, AppLayerResult, AppLayerStateData,
+    AppLayerTxData, RustParser, StreamSlice, APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
+};
+use suricata::core::{AppLayerEventType, StringToAppProto, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use suricata::direction::Direction;
+use suricata::flow::Flow;
+use suricata::frames::Frame;
+use suricata::{cast_pointer, SCLogNotice, SCLogWarning};
+use suricata_sys::sys::AppProto;
 
 pub(crate) static mut ALPROTO_ZABBIX: AppProto = ALPROTO_UNKNOWN;
 static mut ALPROTO_FAILED: AppProto = 0xFFFF;
@@ -55,8 +58,8 @@ impl ZabbixEvent {
 
     pub unsafe extern "C" fn get_event_info(
         event_name: *const std::os::raw::c_char,
-        event_id: *mut std::os::raw::c_int,
-        event_type: *mut std::os::raw::c_int,
+        event_id: *mut u8,
+        event_type: *mut AppLayerEventType,
     ) -> std::os::raw::c_int {
         if event_name.is_null() {
             return -1;
@@ -71,19 +74,19 @@ impl ZabbixEvent {
                 return -1;
             }
         };
-        *event_type = APP_LAYER_EVENT_TYPE_TRANSACTION;
-        *event_id = event as std::os::raw::c_int;
+        *event_type = AppLayerEventType::APP_LAYER_EVENT_TYPE_TRANSACTION;
+        *event_id = event as u8;
         0
     }
 
     pub unsafe extern "C" fn get_event_info_by_id(
-        event_id: std::os::raw::c_int,
+        event_id: u8,
         event_name: *mut *const std::os::raw::c_char,
-        event_type: *mut std::os::raw::c_int,
-    ) -> i8 {
-        if let Some(e) = ZabbixEvent::from_id(event_id) {
+        event_type: *mut AppLayerEventType,
+    ) -> std::os::raw::c_int {
+        if let Some(e) = ZabbixEvent::from_id(event_id as i32) {
             *event_name = e.to_cstring().as_ptr() as *const std::os::raw::c_char;
-            *event_type = APP_LAYER_EVENT_TYPE_TRANSACTION;
+            *event_type = AppLayerEventType::APP_LAYER_EVENT_TYPE_TRANSACTION;
             return 0;
         }
         -1
@@ -227,7 +230,7 @@ impl ZabbixState {
             input,
             (input.len() - remlen) as i64,
             ZabbixFrameType::Pdu as u8,
-            tx_id,
+            Some(tx_id),
         );
         let _hdr = Frame::new(
             flow,
@@ -235,7 +238,7 @@ impl ZabbixState {
             input,
             hdrlen as i64,
             ZabbixFrameType::Hdr as u8,
-            tx_id,
+            Some(tx_id),
         );
         let _data = Frame::new(
             flow,
@@ -243,7 +246,7 @@ impl ZabbixState {
             &input[hdrlen..],
             (input.len() - remlen - hdrlen) as i64,
             ZabbixFrameType::Data as u8,
-            tx_id,
+            Some(tx_id),
         );
     }
 
@@ -329,7 +332,7 @@ unsafe extern "C" fn rs_zabbix_state_free(state: *mut c_void) {
 }
 
 unsafe extern "C" fn rs_zabbix_state_tx_free(state: *mut c_void, tx_id: u64) {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     state.free_tx(tx_id);
 }
 
@@ -340,7 +343,7 @@ unsafe extern "C" fn rs_zabbix_parse_request(
     stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     state.parse_zabbix(Direction::ToServer, _flow, stream_slice)
 }
 
@@ -351,12 +354,12 @@ unsafe extern "C" fn rs_zabbix_parse_response(
     stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     state.parse_zabbix(Direction::ToClient, _flow, stream_slice)
 }
 
 unsafe extern "C" fn rs_zabbix_state_get_tx(state: *mut c_void, tx_id: u64) -> *mut c_void {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     match state.get_tx(tx_id) {
         Some(tx) => tx as *const _ as *mut _,
         None => std::ptr::null_mut(),
@@ -364,7 +367,7 @@ unsafe extern "C" fn rs_zabbix_state_get_tx(state: *mut c_void, tx_id: u64) -> *
 }
 
 unsafe extern "C" fn rs_zabbix_state_get_tx_count(state: *mut c_void) -> u64 {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     state.tx_id
 }
 
@@ -396,7 +399,7 @@ pub unsafe extern "C" fn zabbix_get_tx_iterator(
     _max_tx_id: u64,
     istate: &mut u64,
 ) -> AppLayerGetTxIterTuple {
-    let state = ctor_pointer!(state, ZabbixState);
+    let state = cast_pointer!(state, ZabbixState);
     let mut index = *istate as usize;
     let len = state.transactions.len();
     while index < len {
@@ -424,7 +427,7 @@ pub extern "C" fn rs_zabbix_state_progress_completion_status(
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_zabbix_register_parser() {
-    SCLog!(Level::Notice, "Registering zabbix parser");
+    SCLogNotice!("Registering zabbix parser");
     //let default_port = CString::new("[10050]").unwrap();
     let parser = RustParser {
         name: b"zabbix\0".as_ptr() as *const c_char,
@@ -461,6 +464,8 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
         flags: APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
         get_frame_id_by_name: Some(ZabbixFrameType::ffi_id_from_name),
         get_frame_name_by_id: Some(ZabbixFrameType::ffi_name_from_id),
+        get_state_id_by_name: None,
+        get_state_name_by_id: None,
     };
 
     let ip_proto_str = CString::new("tcp").unwrap();
@@ -478,7 +483,7 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
             Direction::ToServer as u8,
         ) < 0
         {
-            SCLog!(Level::Warning, "Rust zabbix failed to register detection.");
+            SCLogWarning!("Rust zabbix failed to register detection.");
         }
 
         if AppLayerProtoDetectPMRegisterPatternCS(
@@ -490,18 +495,15 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
             Direction::ToClient as u8,
         ) < 0
         {
-            SCLog!(Level::Warning, "Rust zabbix failed to register detection.");
+            SCLogWarning!("Rust zabbix failed to register detection.");
         }
 
         if AppLayerParserConfParserEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
             let _ = AppLayerRegisterParser(&parser, alproto);
         }
         AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_ZABBIX);
-        SCLog!(Level::Notice, "Rust zabbix parser registered.");
+        SCLogNotice!("Rust zabbix parser registered.");
     } else {
-        SCLog!(
-            Level::Notice,
-            "Protocol detector and parser disabled for zabbix."
-        );
+        SCLogNotice!("Protocol detector and parser disabled for zabbix.");
     }
 }
