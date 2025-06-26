@@ -4,17 +4,25 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_int, c_void};
 use suricata::applayer::{
-    AppLayerGetTxIterTuple, AppLayerParserConfParserEnabled, AppLayerParserRegisterLogger,
-    AppLayerProtoDetectConfProtoDetectionEnabled, AppLayerProtoDetectPMRegisterPatternCS,
-    AppLayerRegisterParser, AppLayerRegisterProtocolDetection, AppLayerResult, AppLayerStateData,
-    AppLayerTxData, RustParser, StreamSlice, APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
+    AppLayerGetTxIterTuple, AppLayerRegisterParser, AppLayerRegisterProtocolDetection,
+    AppLayerResult, AppLayerStateData, AppLayerTxData, RustParser, StreamSlice,
+    APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
 };
-use suricata::core::{AppLayerEventType, StringToAppProto, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use suricata::core::{AppLayerEventType, ALPROTO_UNKNOWN, IPPROTO_TCP};
 use suricata::direction::Direction;
 use suricata::flow::Flow;
 use suricata::frames::Frame;
 use suricata::{cast_pointer, SCLogNotice, SCLogWarning};
-use suricata_sys::sys::AppProto;
+use suricata_sys::sys::{
+    AppLayerParserState, AppProto, SCAppLayerParserConfParserEnabled,
+    SCAppLayerParserRegisterLogger, SCAppLayerProtoDetectConfProtoDetectionEnabled,
+    SCAppLayerProtoDetectPMRegisterPatternCS,
+};
+
+// Defined in app-layer-protos.h
+extern "C" {
+    pub fn StringToAppProto(proto_name: *const u8) -> AppProto;
+}
 
 pub(crate) static mut ALPROTO_ZABBIX: AppProto = ALPROTO_UNKNOWN;
 static mut ALPROTO_FAILED: AppProto = 0xFFFF;
@@ -337,9 +345,9 @@ unsafe extern "C" fn rs_zabbix_state_tx_free(state: *mut c_void, tx_id: u64) {
 }
 
 unsafe extern "C" fn rs_zabbix_parse_request(
-    _flow: *const Flow,
+    _flow: *mut Flow,
     state: *mut c_void,
-    _pstate: *mut c_void,
+    _pstate: *mut AppLayerParserState,
     stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -348,9 +356,9 @@ unsafe extern "C" fn rs_zabbix_parse_request(
 }
 
 unsafe extern "C" fn rs_zabbix_parse_response(
-    _flow: *const Flow,
+    _flow: *mut Flow,
     state: *mut c_void,
-    _pstate: *mut c_void,
+    _pstate: *mut AppLayerParserState,
     stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -471,10 +479,10 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
     let ip_proto_str = CString::new("tcp").unwrap();
     ALPROTO_FAILED = StringToAppProto("failed\0".as_ptr());
 
-    if AppLayerProtoDetectConfProtoDetectionEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
+    if SCAppLayerProtoDetectConfProtoDetectionEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
         let alproto = AppLayerRegisterProtocolDetection(&parser, 1);
         ALPROTO_ZABBIX = alproto;
-        if AppLayerProtoDetectPMRegisterPatternCS(
+        if SCAppLayerProtoDetectPMRegisterPatternCS(
             IPPROTO_TCP,
             ALPROTO_ZABBIX,
             b"ZBXD\0".as_ptr() as *const std::os::raw::c_char,
@@ -486,7 +494,7 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
             SCLogWarning!("Rust zabbix failed to register detection.");
         }
 
-        if AppLayerProtoDetectPMRegisterPatternCS(
+        if SCAppLayerProtoDetectPMRegisterPatternCS(
             IPPROTO_TCP,
             ALPROTO_ZABBIX,
             b"ZBXD\0".as_ptr() as *const std::os::raw::c_char,
@@ -498,10 +506,10 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
             SCLogWarning!("Rust zabbix failed to register detection.");
         }
 
-        if AppLayerParserConfParserEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
+        if SCAppLayerParserConfParserEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
             let _ = AppLayerRegisterParser(&parser, alproto);
         }
-        AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_ZABBIX);
+        SCAppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_ZABBIX);
         SCLogNotice!("Rust zabbix parser registered.");
     } else {
         SCLogNotice!("Protocol detector and parser disabled for zabbix.");
