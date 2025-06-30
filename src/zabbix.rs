@@ -19,13 +19,7 @@ use suricata_sys::sys::{
     SCAppLayerProtoDetectPMRegisterPatternCS,
 };
 
-// Defined in app-layer-protos.h
-extern "C" {
-    pub fn StringToAppProto(proto_name: *const u8) -> AppProto;
-}
-
 pub(crate) static mut ALPROTO_ZABBIX: AppProto = ALPROTO_UNKNOWN;
-static mut ALPROTO_FAILED: AppProto = 0xFFFF;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ZabbixEvent {
@@ -477,7 +471,6 @@ pub unsafe extern "C" fn rs_zabbix_register_parser() {
     };
 
     let ip_proto_str = CString::new("tcp").unwrap();
-    ALPROTO_FAILED = StringToAppProto("failed\0".as_ptr());
 
     if SCAppLayerProtoDetectConfProtoDetectionEnabled(ip_proto_str.as_ptr(), parser.name) != 0 {
         let alproto = AppLayerRegisterProtocolDetection(&parser, 1);
