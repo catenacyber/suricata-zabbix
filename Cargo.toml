@@ -10,8 +10,8 @@ crate-type = ["cdylib"]
 nom7 = { version="7.0", package="nom" }
 libc = "~0.2.82"
 flate2 = "1.0.34"
-suricata = "=8.0.0-rc1.1"
-suricata-sys = "=8.0.0-rc1.1"
+suricata = "=8.0.0"
+suricata-sys = "=8.0.0"
 
 [features]
 default = ["suricata8"]
